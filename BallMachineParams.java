@@ -14,10 +14,10 @@ public class BallMachineParams
         BACKHAND
     };
 
-    enum Range
+    enum Depth
     {
-        BOX, // the shot lands in the service box
-        DEEP // the shot lands deep in the corner
+        SERVICEBOX, // the shot lands in the service box
+        OPENCOURT // the shot lands deep in the open court
     };
 
     // changes the calculations of the ranges
@@ -35,7 +35,7 @@ public class BallMachineParams
 
     public Angle angle = Angle.NARROW;
     public Direction direction = Direction.FOREHAND;
-    public Range range = Range.BOX;
+    public Depth depth = Depth.SERVICEBOX;
     public PlayStyle playStyle = PlayStyle.SINGLES;
     public Court court = Court.DEUCECOURT;
 }

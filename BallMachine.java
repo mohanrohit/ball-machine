@@ -9,15 +9,14 @@ public class BallMachine
 {
     public void showUsage()
     {
-        System.out.println("Usage:\n");
+        System.out.println("");
         System.out.println("At the '> ' prompt, enter a command:");
         System.out.println("  'shoot' to shoot the next ball");
-        System.out.println("  'range:<range>' where 'range' is 'deep' or 'box'");
-        System.out.println("  'direction:<direction>' where 'direction' is 'forehand' or 'backhand'");
-        System.out.println("  'angle:<angle>' where 'angle' can be 'narrow', 'body' or 'long'");
+        System.out.println("  'depth: <depth>' where <depth> is 'deep' or 'box'");
+        System.out.println("  'direction: <direction>' where <direction> is 'forehand' or 'backhand'");
+        System.out.println("  'angle: <angle>' where <angle> is 'narrow', 'body' or 'wide'");
+        System.out.println("  'q' or 'quit' to stop the ball machine");
         System.out.println("\nJust press <enter> to shoot a ball with the current settings.\n");
-
-        showSettings();
     }
 
     public void showSettings()
@@ -25,14 +24,14 @@ public class BallMachine
         System.out.println("Current settings:");
         System.out.println("  Angle: " + _ballMachineParams.angle);
         System.out.println("  Direction: " + _ballMachineParams.direction);
-        System.out.println("  Range: " + _ballMachineParams.range);
+        System.out.println("  Depth: " + _ballMachineParams.depth);
+        System.out.println("");
     }
 
     void start()
     {
         System.out.println("Ball machine is starting.\n");
-
-        showUsage();
+        System.out.println("Enter 'help' or '?' for help.\n");
     }
 
     void stop()
@@ -68,9 +67,9 @@ public class BallMachine
             return new Command(Command.SHOOT_BALL, new String[]{});
         }
 
-        if (command.toLowerCase().equals("range"))
+        if (command.toLowerCase().equals("depth"))
         {
-            return new Command(Command.SET_RANGE, new String[]{param});
+            return new Command(Command.SET_DEPTH, new String[]{param});
         }
 
         if (command.toLowerCase().equals("angle"))
@@ -83,6 +82,11 @@ public class BallMachine
             return new Command(Command.SET_DIRECTION, new String[]{param});
         }
 
+        if (command.toLowerCase().equals("help") || command.equals("?"))
+        {
+            return new Command(Command.HELP, new String[]{param});
+        }
+
         if (command.length() > 0)
         {
             System.out.println(command.toLowerCase() + " is not a valid command. Ball machine will just shoot a ball.");
@@ -92,26 +96,71 @@ public class BallMachine
         return new Command(Command.SHOOT_BALL, new String[]{});
     }
 
-    void shootBall()
+    double getHorizontalRange()
     {
-        System.out.println("Shooting ball");
+        double narrowRange = 4.5; // feet
+        double bodyRange = 9.0;
+        double wideRange = 13.5;
+
+        switch (_ballMachineParams.angle)
+        {
+        case NARROW: return narrowRange;
+        case BODY: return bodyRange;
+        case WIDE: return wideRange;
+        }
+
+        return narrowRange; // default
     }
 
-    void setRange(String range)
+    double getVerticalRange()
     {
-        range = range.toUpperCase();
+        double netToOppositeServiceLineDistance = 21; // feet
+        double netToOppositeBaselineDistance = 39;
 
-        boolean rangeIsValid = range.equals("BOX") || range.equals("DEEP");
-        if (!rangeIsValid)
+        switch (_ballMachineParams.depth)
         {
-            System.out.println(range + " is not an allowed value for range. Range is still " + _ballMachineParams.range + ".");
+        case SERVICEBOX: return netToOppositeServiceLineDistance;
+        case OPENCOURT: return netToOppositeBaselineDistance;
+        }
+
+        return netToOppositeServiceLineDistance; // default
+    }
+
+    void shootBall()
+    {
+        double baselineToNetDistance = 39; // feet
+
+        double totalHorizontalRange = getHorizontalRange();
+        double totalVerticalRange = getVerticalRange();
+
+        // pick a random point between (0 -- totalHorizontalRange, baselineToNetDistance -- baselineToNetDistance + totalVerticalRange)
+        double horizontalRange = Math.random() * totalHorizontalRange;
+        double verticalRange = baselineToNetDistance + Math.random() * totalVerticalRange;
+
+        System.out.println("Shooting ball; landed at (" + horizontalRange + ", " + verticalRange + ")");
+    }
+
+    void showHelp()
+    {
+        showUsage();
+        showSettings();
+    }
+
+    void setDepth(String depth)
+    {
+        depth = depth.toUpperCase();
+
+        boolean depthIsValid = depth.equals("SERVICEBOX") || depth.equals("OPENCOURT");
+        if (!depthIsValid)
+        {
+            System.out.println(depth + " is not an allowed value for depth. Depth is still " + _ballMachineParams.depth + ".");
 
             return;
         }
 
-        _ballMachineParams.range = range.equals("BOX") ? BallMachineParams.Range.BOX : BallMachineParams.Range.DEEP;
+        _ballMachineParams.depth = depth.equals("SERVICEBOX") ? BallMachineParams.Depth.SERVICEBOX : BallMachineParams.Depth.OPENCOURT;
 
-        System.out.println("Range is now " + range + ".");
+        System.out.println("Depth is now " + depth + ".");
     }
 
     void setAngle(String angle)
@@ -152,44 +201,6 @@ public class BallMachine
         System.out.println("Direction is now " + direction + ".");
     }
 
-    /*
-    public void run()
-    {
-        start();
-
-        while (true)
-        {
-            BallMachineCommand command = getCommand();
-
-            if (command.id == BallMachineCommand.QUIT)
-            {
-                break;
-            }
-
-            switch (command.id)
-            {
-            case BallMachineCommand.SHOOT_BALL:
-                shootBall();
-                break;
-
-            case BallMachineCommand.SET_RANGE:
-                setRange(((SetRangeCommand)command).range);
-                break;
-
-            case BallMachineCommand.SET_ANGLE:
-                setAngle(((SetAngleCommand)command).angle);
-                break;
-
-            case BallMachineCommand.SET_DIRECTION:
-                setAngle(((SetDirectionCommand)command).direction);
-                break;
-            }
-        }
-
-        stop();
-    }
-    */
-
     public void run()
     {
         start();
@@ -209,8 +220,8 @@ public class BallMachine
                 shootBall();
                 break;
 
-            case Command.SET_RANGE:
-                setRange(command.params[0]);
+            case Command.SET_DEPTH:
+                setDepth(command.params[0]);
                 break;
 
             case Command.SET_ANGLE:
@@ -219,6 +230,10 @@ public class BallMachine
 
             case Command.SET_DIRECTION:
                 setDirection(command.params[0]);
+                break;
+
+            case Command.HELP:
+                showHelp();
                 break;
             }
         }
