@@ -7,35 +7,32 @@ import java.util.Arrays;
 
 public class BallMachine
 {
-    /*
     public void showUsage()
     {
-        System.out.println("Usage:");
-        System.out.println("At the '> ' prompt, enter a command.");
-        System.out.println("Commands can be:");
+        System.out.println("Usage:\n");
+        System.out.println("At the '> ' prompt, enter a command:");
         System.out.println("  'shoot' to shoot the next ball");
         System.out.println("  'range:<range>' where 'range' is 'deep' or 'box'");
         System.out.println("  'direction:<direction>' where 'direction' is 'forehand' or 'backhand'");
-        System.out.println("  'range:<range>' where 'range' is 'deep' or 'box'");
-        System.out.println("  'direction:<direction>' where 'direction' is 'forehand' or 'backhand'");
-        System.out.println("  Court: " + params.court);
-    }
-    */
+        System.out.println("  'angle:<angle>' where 'angle' can be 'narrow', 'body' or 'long'");
+        System.out.println("\nJust press <enter> to shoot a ball with the current settings.\n");
 
-    public void showStatus(BallMachineParams params)
+        showSettings();
+    }
+
+    public void showSettings()
     {
-        System.out.println("The ball machine is now running.");
-        System.out.println("Params:");
-        System.out.println("  Angle: " + params.angle);
-        System.out.println("  Direction: " + params.direction);
-        System.out.println("  Range: " + params.range);
-        System.out.println("  Play style: " + params.playStyle);
-        System.out.println("  Court: " + params.court);
+        System.out.println("Current settings:");
+        System.out.println("  Angle: " + _ballMachineParams.angle);
+        System.out.println("  Direction: " + _ballMachineParams.direction);
+        System.out.println("  Range: " + _ballMachineParams.range);
     }
 
     void start()
     {
-        System.out.println("Ball machine is starting.");
+        System.out.println("Ball machine is starting.\n");
+
+        showUsage();
     }
 
     void stop()
@@ -86,6 +83,11 @@ public class BallMachine
             return new Command(Command.SET_DIRECTION, new String[]{param});
         }
 
+        if (command.length() > 0)
+        {
+            System.out.println(command.toLowerCase() + " is not a valid command. Ball machine will just shoot a ball.");
+        }
+
         // by default, just shoot a ball
         return new Command(Command.SHOOT_BALL, new String[]{});
     }
@@ -98,8 +100,6 @@ public class BallMachine
     void setRange(String range)
     {
         range = range.toUpperCase();
-
-        String[] allowed = {"BOX", "DEEP"};
 
         boolean rangeIsValid = range.equals("BOX") || range.equals("DEEP");
         if (!rangeIsValid)
@@ -139,7 +139,8 @@ public class BallMachine
 
         String[] allowed = {"FOREHAND", "BACKHAND"};
 
-        if (!Arrays.asList(allowed).contains(direction))
+        boolean directionIsValid = direction.equals("FOREHAND") || direction.equals("BACKHAND");
+        if (!directionIsValid)
         {
             System.out.println(direction + " is not an allowed value for direction. Direction is still " +  _ballMachineParams.direction + ".");
 
@@ -148,7 +149,7 @@ public class BallMachine
 
         _ballMachineParams.direction = direction.equals("FOREHAND") ? BallMachineParams.Direction.FOREHAND : BallMachineParams.Direction.BACKHAND;
 
-        System.out.println("Driection is now " + direction + ".");
+        System.out.println("Direction is now " + direction + ".");
     }
 
     /*
