@@ -14,11 +14,12 @@ class Command
     public static final int QUIT = 0;
     public static final int SHOOT_BALL = 1;
     public static final int SET_DEPTH = 2;
-    public static final int SET_ANGLE = 3;
+    public static final int SET_ZONE = 3;
     public static final int SET_DIRECTION = 4;
-    public static final int SHOW_HELP = 5;
-    public static final int SHOW_SETTINGS = 6;
-    public static final int SHOW_RANGES = 7;
+    public static final int SET_COURT = 5;
+    public static final int SHOW_HELP = 6;
+    public static final int SHOW_SETTINGS = 7;
+    public static final int SHOW_RANGES = 8;
 
     public Command(int id, String[] params)
     {
@@ -33,7 +34,7 @@ class Command
 // Class to store the parameters for operating the ball machine
 class BallMachineParams
 {
-    enum Angle
+    enum Zone
     {
         NARROW, // down the service line
         BODY, // to the body -- middle of the box
@@ -62,15 +63,15 @@ class BallMachineParams
 
     enum Court
     {
-        DEUCECOURT,
-        ADCOURT
+        DEUCE,
+        AD
     };
 
-    public Angle angle = Angle.NARROW;
+    public Zone zone = Zone.NARROW;
     public Direction direction = Direction.FOREHAND;
     public Depth depth = Depth.SERVICEBOX;
     public PlayStyle playStyle = PlayStyle.SINGLES;
-    public Court court = Court.DEUCECOURT;
+    public Court court = Court.DEUCE;
 }
 
 // The ball machine. Assumes singles court dimensions
@@ -107,8 +108,9 @@ public class BallMachine
         _commandMap.put("q", Command.QUIT);
         _commandMap.put("shoot", Command.SHOOT_BALL);
         _commandMap.put("depth", Command.SET_DEPTH);
-        _commandMap.put("angle", Command.SET_ANGLE);
+        _commandMap.put("zone", Command.SET_ZONE);
         _commandMap.put("direction", Command.SET_DIRECTION);
+        _commandMap.put("court", Command.SET_COURT);
         _commandMap.put("help", Command.SHOW_HELP);
         _commandMap.put("?", Command.SHOW_HELP);
         _commandMap.put("settings", Command.SHOW_SETTINGS);
@@ -172,8 +174,16 @@ public class BallMachine
     double getMinDepth()
     {
         // the minimum depth is from the location of the ball machine to the
-        // net plus, say, half a foot (so the ball goes OVER the net)
-        return BASELINE_TO_NET_DISTANCE + 0.5;
+        // net plus, say, half a foot (so the ball at least goes OVER the net)
+        double minDepth = BASELINE_TO_NET_DISTANCE + 0.5;
+
+        switch (_ballMachineParams.depth)
+        {
+        case SERVICEBOX: return minDepth;
+        case OPENCOURT: return BASELINE_TO_NET_DISTANCE + NET_TO_OPPOSITE_SERVICELINE_DISTANCE;
+        }
+
+        return minDepth; // default to service line
     }
 
     double getMaxDepth()
@@ -184,12 +194,12 @@ public class BallMachine
         case OPENCOURT: return BASELINE_TO_NET_DISTANCE + NET_TO_OPPOSITE_BASELINE_DISTANCE;
         }
 
-        return BASELINE_TO_NET_DISTANCE + NET_TO_OPPOSITE_BASELINE_DISTANCE; // default to baseline
+        return BASELINE_TO_NET_DISTANCE + NET_TO_OPPOSITE_SERVICELINE_DISTANCE; // default to service line
     }
 
     double getMinWidth()
     {
-        switch (_ballMachineParams.angle)
+        switch (_ballMachineParams.zone)
         {
         case NARROW: return NARROW_WIDTH_MIN;
         case BODY: return BODY_WIDTH_MIN;
@@ -201,7 +211,7 @@ public class BallMachine
 
     double getMaxWidth()
     {
-        switch (_ballMachineParams.angle)
+        switch (_ballMachineParams.zone)
         {
         case NARROW: return NARROW_WIDTH_MAX;
         case BODY: return BODY_WIDTH_MAX;
@@ -224,7 +234,15 @@ public class BallMachine
         double x = minWidth + Math.random() * (maxWidth - minWidth);
         double y = minDepth + Math.random() * (maxDepth - minDepth);
 
-        System.out.println("Shooting ball; landed at (" + x + ", " + y + ")");
+        // adjust x for the court -- if the ball machine is at (0, 0), then x is
+        // positive for the opposite ad court and negative for the opposite deuce
+        // court
+        x = _ballMachineParams.court == BallMachineParams.Court.AD ? x : -x;
+
+        x = (Math.round(x * 100)) / 100.0;
+        y = (Math.round(y * 100)) / 100.0;
+
+        System.out.println("Shooting ball... landed at (" + x + ", " + y + ")");
     }
 
     public void showUsage()
@@ -234,7 +252,8 @@ public class BallMachine
         System.out.println("  'shoot' to shoot the next ball");
         System.out.println("  'depth: <depth>' where <depth> is 'opencourt' or 'servicebox'");
         System.out.println("  'direction: <direction>' where <direction> is 'forehand' or 'backhand'");
-        System.out.println("  'angle: <angle>' where <angle> is 'narrow', 'body' or 'wide'");
+        System.out.println("  'zone: <zone>' where <zone> is 'narrow', 'body' or 'wide'");
+        System.out.println("  'court: <court>' where <court> is 'deuce' or 'ad'");
         System.out.println("  'settings' to show the settings for the ball machine");
         System.out.println("  'range' to show the width and depth ranges for the ball");
         System.out.println("  '?' or 'help' to show help");
@@ -247,7 +266,8 @@ public class BallMachine
     {
         System.out.println("");
         System.out.println("Current settings:");
-        System.out.println("  Angle: " + _ballMachineParams.angle);
+        System.out.println("  Court: " + _ballMachineParams.court);
+        System.out.println("  Zone: " + _ballMachineParams.zone);
         System.out.println("  Direction: " + _ballMachineParams.direction);
         System.out.println("  Depth: " + _ballMachineParams.depth);
         System.out.println("");
@@ -256,10 +276,10 @@ public class BallMachine
     void showBallRanges()
     {
         System.out.print("The ball will land within [");
-        System.out.print(getMinWidth() + ", " + getMaxWidth());
+        System.out.print(getMinWidth() + " -- " + getMaxWidth() + " feet");
         System.out.print("] horizontally and [");
-        System.out.print(getMinDepth() + ", " + getMaxDepth());
-        System.out.print("] deep.");
+        System.out.print(getMinDepth() + " -- " + getMaxDepth() + " feet");
+        System.out.print("] deep in the " + _ballMachineParams.court + " court.");
         System.out.println("");
     }
 
@@ -288,23 +308,23 @@ public class BallMachine
         showBallRanges();
     }
 
-    void setAngle(String angle)
+    void setZone(String zone)
     {
-        angle = angle.toUpperCase();
+        zone = zone.toUpperCase();
 
-        boolean angleIsValid = angle.equals("NARROW") || angle.equals("BODY") || angle.equals("WIDE");
-        if (!angleIsValid)
+        boolean zoneIsValid = zone.equals("NARROW") || zone.equals("BODY") || zone.equals("WIDE");
+        if (!zoneIsValid)
         {
-            System.out.println(angle + " is not an allowed value for angle. Angle is still " +  _ballMachineParams.angle + ".");
+            System.out.println(zone + " is not an allowed value for zone. Zone is still " +  _ballMachineParams.zone + ".");
 
             return;
         }
 
-        _ballMachineParams.angle = angle.equals("NARROW") ?
-            BallMachineParams.Angle.NARROW :
-            (angle.equals("BODY") ? BallMachineParams.Angle.BODY : BallMachineParams.Angle.WIDE);
+        _ballMachineParams.zone = zone.equals("NARROW") ?
+            BallMachineParams.Zone.NARROW :
+            (zone.equals("BODY") ? BallMachineParams.Zone.BODY : BallMachineParams.Zone.WIDE);
 
-        System.out.println("Angle is now " + angle + ".");
+        System.out.println("Zone is now " + zone + ".");
 
         showBallRanges();
     }
@@ -324,6 +344,27 @@ public class BallMachine
         _ballMachineParams.direction = direction.equals("FOREHAND") ? BallMachineParams.Direction.FOREHAND : BallMachineParams.Direction.BACKHAND;
 
         System.out.println("Direction is now " + direction + ".");
+
+        showBallRanges();
+    }
+
+    void setCourt(String court)
+    {
+        court = court.toUpperCase();
+
+        boolean courtIsValid = court.equals("AD") || court.equals("DEUCE");
+        if (!courtIsValid)
+        {
+            System.out.println(court + " is not an allowed value for court. Court is still " +  _ballMachineParams.court + ".");
+
+            return;
+        }
+
+        _ballMachineParams.court = court.equals("DEUCE") ? BallMachineParams.Court.DEUCE : BallMachineParams.Court.AD;
+
+        System.out.println("Court is now " + court + ".");
+
+        showBallRanges();
     }
 
     public void run()
@@ -349,12 +390,16 @@ public class BallMachine
                 setDepth(command.params[0]);
                 break;
 
-            case Command.SET_ANGLE:
-                setAngle(command.params[0]);
+            case Command.SET_ZONE:
+                setZone(command.params[0]);
                 break;
 
             case Command.SET_DIRECTION:
                 setDirection(command.params[0]);
+                break;
+
+            case Command.SET_COURT:
+                setCourt(command.params[0]);
                 break;
 
             case Command.SHOW_HELP:
